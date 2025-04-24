@@ -1,4 +1,4 @@
-const Product = require("../../models/Product");
+const Product = require("../../models/Product.js");
 
 const handleError = (res, error) => {
   console.error("Error:", error);

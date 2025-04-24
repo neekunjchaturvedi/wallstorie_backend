@@ -1,5 +1,5 @@
-const Product = require("../../models/Product");
-const _ = require('lodash');
+const Product = require("../../models/Product.js");
+const _ = require("lodash");
 
 const searchProducts = async (req, res) => {
   try {
