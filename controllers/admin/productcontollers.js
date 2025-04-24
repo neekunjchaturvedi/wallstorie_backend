@@ -1,5 +1,5 @@
 const { imageUploadUtil } = require("../../helpers/cloudinary");
-const Product = require("../../models/Product");
+const Product = require("../../models/Product.js");
 
 // Utility function for current UTC datetime
 const getCurrentUTCDateTime = () => {
