@@ -1,6 +1,6 @@
 const mongoose = require("mongoose");
 const Cart = require("../../models/Cart");
-const CartItem = require("../../models/cartitems");
+const CartItem = require("../../models/Cartitems");
 const Product = require("../../models/Product");
 
 // Helper function to calculate price
