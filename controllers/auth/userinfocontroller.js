@@ -1,5 +1,5 @@
 const User = require("../../models/user.js");
-const Userinfo = require("../../models/Userinfo.js");
+const Userinfo = require("../../models/userinfo.js");
 
 const createUserinfo = async (req, res) => {
   try {
