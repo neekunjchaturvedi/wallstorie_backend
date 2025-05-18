@@ -11,7 +11,7 @@ const handleError = (res, error) => {
 
 const getProductsByType = async (req, res, productType) => {
   try {
-    const { sort, price, space, trends, color } = req.query; 
+    const { sort, price, space, trends, color } = req.query;
     let sortCriteria = { popularity: -1 };
     let filterCriteria = { productType };
 

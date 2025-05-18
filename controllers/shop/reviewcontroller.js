@@ -1,6 +1,6 @@
 const mongoose = require("mongoose");
 const Product = require("../../models/Product.js");
-const ProductReview = require("../../models/Review.js");
+const ProductReview = require("../../models/review.js");
 
 const addProductReview = async (req, res) => {
   try {
