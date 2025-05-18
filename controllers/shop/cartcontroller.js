@@ -1,5 +1,5 @@
 const mongoose = require("mongoose");
-const Cart = require("../../models/Cart");
+const Cart = require("../../models/Cart.js");
 const CartItem = require("../../models/Cartitems.js");
 const Product = require("../../models/Product.js");
 
