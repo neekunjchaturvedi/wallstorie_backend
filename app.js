@@ -3,6 +3,7 @@ const cookieParser = require("cookie-parser");
 const cors = require("cors");
 require("dotenv").config();
 const session = require("express-session");
+const MongoStore = require("connect-mongo"); // ADD THIS LINE
 const lusca = require("lusca");
 const passport = require("passport");
 const mongoose = require("mongoose");
@@ -57,6 +58,10 @@ app.use(
     secret: process.env.SESSION_SECRET || "your_secret_key",
     resave: false,
     saveUninitialized: false,
+    store: MongoStore.create({
+      mongoUrl: process.env.DB_URL, // Use your MongoDB connection string
+      collectionName: "sessions",
+    }),
     cookie: {
       secure: process.env.NODE_ENV === "production",
       httpOnly: true,
