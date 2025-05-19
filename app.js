@@ -30,11 +30,14 @@ require("./config/passportConfig");
 
 const app = express();
 const PORT = process.env.PORT || 5000;
-
+const allowedorigins = [
+  "http://localhost:5173",
+  "https://wallstorie.vercel.app",
+];
 // Middleware
 app.use(
   cors({
-    origin: "http://localhost:5173",
+    origin: allowedorigins,
     methods: ["GET", "POST", "DELETE", "PUT"],
     allowedHeaders: [
       "Content-Type",
