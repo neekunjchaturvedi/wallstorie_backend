@@ -9,6 +9,9 @@ dotenv.config({ path: "config.env" });
 const ACCESS_TOKEN_EXPIRY = "15m";
 const REFRESH_TOKEN_EXPIRY = "7d";
 
+// Use environment variable for frontend URL, fallback to localhost
+const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:5173";
+
 // Generate Access Token
 const generateAccessToken = (user) => {
   return jwt.sign(
@@ -153,12 +156,9 @@ const googleAuthCallback = passport.authenticate("google", {
 // Handle successful Google authentication
 const googleAuthRedirect = (req, res) => {
   try {
-    // Generate tokens for the authenticated user
     if (!req.user) {
       console.error("No user found in request after Google authentication");
-      return res.redirect(
-        "http://localhost:5173/auth/login?googleLogin=failure"
-      );
+      return res.redirect(`${FRONTEND_URL}/auth/login?googleLogin=failure`);
     }
 
     const accessToken = generateAccessToken(req.user);
@@ -173,13 +173,13 @@ const googleAuthRedirect = (req, res) => {
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
-    // Set access token in local storage by redirecting with a parameter
+    // Redirect with access token as parameter
     res.redirect(
-      `http://localhost:5173/auth/login?googleLogin=success&token=${accessToken}`
+      `${FRONTEND_URL}/auth/login?googleLogin=success&token=${accessToken}`
     );
   } catch (error) {
     console.error("Error in googleAuthRedirect:", error);
-    res.redirect("http://localhost:5173/auth/login?googleLogin=failure");
+    res.redirect(`${FRONTEND_URL}/auth/login?googleLogin=failure`);
   }
 };
 
