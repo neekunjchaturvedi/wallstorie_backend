@@ -1,29 +1,44 @@
 const mongoose = require("mongoose");
-const Cart = require("../../models/cart.js");
-const CartItem = require("../../models/cartitems.js");
-const Product = require("../../models/Product.js");
+const Cart = require("../../models/Cart");
+const CartItem = require("../../models/cartitems");
+const Product = require("../../models/Product");
 
-// Helper function to calculate price
+// Updated Helper function to calculate price
 const calculatePrice = (
   product,
   quantity,
   height,
   width,
   length,
-  materialPrice
+  materialPrice,
+  productType
 ) => {
   let totalPrice = 0;
   let area = 0;
+  const basePrice = product.salePrice || product.price;
 
-  if (height && width) {
-    area = (height * width) / 144;
-    totalPrice = area * product.salePrice * quantity + (materialPrice || 0);
-  } else if (length) {
-    area = length;
-    totalPrice = length * product.salePrice * quantity + (materialPrice || 0);
+  // Handle different product types
+  if (productType === "curtains") {
+    // For curtains, add material price separately as per your requirement
+    if (length) {
+      area = length;
+      totalPrice = length * basePrice * quantity + (materialPrice || 0);
+    } else {
+      totalPrice = basePrice * quantity + (materialPrice || 0);
+    }
   } else {
-    totalPrice =
-      (product.salePrice || product.price) * quantity + (materialPrice || 0);
+    // For wallpapers and other products, add material price to base price BEFORE multiplying by area
+    const adjustedBasePrice = basePrice + (materialPrice || 0);
+
+    if (height && width) {
+      area = (height * width) / 144;
+      totalPrice = area * adjustedBasePrice * quantity;
+    } else if (length) {
+      area = length;
+      totalPrice = length * adjustedBasePrice * quantity;
+    } else {
+      totalPrice = adjustedBasePrice * quantity;
+    }
   }
 
   return { totalPrice, area };
@@ -41,6 +56,7 @@ exports.addToCart = async (req, res) => {
         message: "Invalid request body",
       });
     }
+
     let {
       userId,
       productId,
@@ -50,6 +66,7 @@ exports.addToCart = async (req, res) => {
       length,
       selectedMaterial,
       materialPrice,
+      productType,
     } = req.body;
 
     // Validate input types
@@ -99,47 +116,78 @@ exports.addToCart = async (req, res) => {
       });
     }
 
-    // Calculate price
+    // Use product's type if not provided in request
+    if (!productType) {
+      productType = product.productType || "standard";
+    }
+
+    // Calculate price with the updated formula
     const { totalPrice, area } = calculatePrice(
       product,
       quantity,
       height,
       width,
       length,
-      materialPrice
+      materialPrice,
+      productType
     );
 
     // Check if item already exists in cart
     let cartItem = await CartItem.findOne({
       cartId: cart._id,
       productId: product._id,
+      // If there are custom options like material, include them in the matching criteria
+      ...(selectedMaterial && { selectedMaterial }),
+      ...(height && { height }),
+      ...(width && { width }),
+      ...(length && { length }),
     });
 
     if (cartItem) {
       // Update existing item
       cartItem.quantity += quantity;
-      cartItem.totalPrice = totalPrice;
-      cartItem.height = height;
-      cartItem.width = width;
-      cartItem.area = area;
-      cartItem.selectedMaterial = selectedMaterial;
-      cartItem.materialPrice = materialPrice;
+
+      // Recalculate price with updated quantity
+      const updatedPriceData = calculatePrice(
+        product,
+        cartItem.quantity,
+        height || cartItem.height,
+        width || cartItem.width,
+        length || cartItem.length,
+        materialPrice || cartItem.materialPrice,
+        productType
+      );
+
+      cartItem.totalPrice = updatedPriceData.totalPrice;
+      cartItem.height = height || cartItem.height;
+      cartItem.width = width || cartItem.width;
+      cartItem.area = updatedPriceData.area;
+      cartItem.selectedMaterial = selectedMaterial || cartItem.selectedMaterial;
+      cartItem.materialPrice = materialPrice || cartItem.materialPrice;
       await cartItem.save();
     } else {
       // Create new cart item
+      const basePrice = product.salePrice || product.price;
+      let unitPrice = basePrice;
+
+      // For non-curtain products, include material price in the unit price
+      if (productType !== "curtains" && materialPrice) {
+        unitPrice = basePrice + materialPrice;
+      }
+
       cartItem = await CartItem.create({
         cartId: cart._id,
         userId,
         productId: product._id,
         quantity,
-        price: product.salePrice || product.price,
+        price: unitPrice, // Store the adjusted unit price
         totalPrice,
         height,
         width,
         area,
         selectedMaterial,
         materialPrice,
-        productType: product.productType || "standard",
+        productType: productType,
         productName: product.productName || product.title,
         image: product.image1,
       });
@@ -157,7 +205,7 @@ exports.addToCart = async (req, res) => {
     // Get updated cart items
     const updatedItems = await CartItem.find({ cartId: cart._id }).populate(
       "productId",
-      "image title price salePrice"
+      "image title price salePrice productType"
     );
 
     res.status(200).json({
@@ -194,7 +242,7 @@ exports.fetchCartItems = async (req, res) => {
 
     const cartItems = await CartItem.find({ cartId: cart._id }).populate(
       "productId",
-      "image title price salePrice"
+      "image title price salePrice productType"
     );
 
     res.status(200).json({
@@ -240,15 +288,29 @@ exports.updateCartItemQuantity = async (req, res) => {
       });
     }
 
-    cartItem.quantity = quantity;
-    cartItem.totalPrice = cartItem.price * quantity;
-
-    if (cartItem.area) {
-      cartItem.totalPrice =
-        cartItem.area * cartItem.price * quantity +
-        (cartItem.materialPrice || 0);
+    // Get the product to have access to its properties
+    const product = await Product.findById(cartItem.productId);
+    if (!product) {
+      return res.status(404).json({
+        success: false,
+        message: "Associated product not found",
+      });
     }
 
+    cartItem.quantity = quantity;
+
+    // Use the same calculation logic for consistency
+    const { totalPrice } = calculatePrice(
+      product,
+      quantity,
+      cartItem.height,
+      cartItem.width,
+      cartItem.length,
+      cartItem.materialPrice,
+      cartItem.productType || product.productType
+    );
+
+    cartItem.totalPrice = totalPrice;
     await cartItem.save();
 
     // Update cart totals
@@ -264,7 +326,7 @@ exports.updateCartItemQuantity = async (req, res) => {
     // Get updated items
     const updatedItems = await CartItem.find({ cartId: cart._id }).populate(
       "productId",
-      "image title price salePrice"
+      "image title price salePrice productType"
     );
 
     res.status(200).json({
@@ -342,7 +404,7 @@ exports.deleteCartItem = async (req, res) => {
     // Get updated cart items with product details
     const updatedItems = await CartItem.find({ cartId: cart._id }).populate(
       "productId",
-      "image title price salePrice"
+      "image title price salePrice productType"
     );
 
     res.status(200).json({
